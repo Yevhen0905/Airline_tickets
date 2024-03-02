@@ -3,6 +3,7 @@
     <button
       class="avia_sorting_button"
       v-for="button in sortingButtons"
+      :class="buttonClasses(button.value)"
       :key="button.value"
       :disabled="disabled"
       @click="activateSorting(button.value)"
@@ -30,7 +31,7 @@
     }
   });
 
-  const emit = defineEmits(['update:modelValue']);
+  const emit = defineEmits(['update:modelValue', 'on-sort']);
 
   const checkedValue = computed({
     get() {
@@ -41,21 +42,23 @@
     }
   });
 
-//   const buttonActive = (value) => {
-//     return [
-//       {
-//         avia_sorting_button_active: value === checkedValue.value
-//       }
-//     ];
-//   };
-
-  const sortTickets = () => {
-    emit('on-sort');
+  const buttonClasses = (value) => {
+    return [
+      {
+        avia_sorting_button_active: value === checkedValue.value
+      }
+    ];
   };
 
   const activateSorting = (value) => {
-    checkedValue = value;
-    if (checkedValue !== value) sortTickets();
+    checkedValue.value = value;
+    if (checkedValue.value !== value) {
+      sortTickets();
+    }
+  };
+
+  const sortTickets = () => {
+    emit('on-sort');
   };
 </script>
 

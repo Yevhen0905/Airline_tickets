@@ -12,7 +12,7 @@
         <div class="main_content_wrapper" v-if="tickets.length">
           <AviaFlyCard v-for="(ticket, ticketIndex) in filteredTickets" :key="ticketIndex" :ticket="ticket" />
           <div class="main_content_buttoms">
-            <button class="content_button_top" @click="goToTop">⇧</button>
+            <button v-if="cardOnPage > 5" class="content_button_top" @click="goToTop">⇧</button>
             <button class="content_button_more" @click="loadMore">show another 5 ticket</button>
           </div>
         </div>
@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-  import {ref, computed, onMounted} from 'vue';
+  import {ref, computed, onMounted, onBeforeUnmount} from 'vue';
   import AviaSalesFilters from '@/components/AviaSalesFilters.vue';
   import AviaFlyCard from '@/components/AviaFlyCard.vue';
   import AviaSalesSorting from '@/components/AviaSalesSorting.vue';
@@ -79,12 +79,20 @@
 
   const filteredTickets = computed(() => tickets.value.slice(0, cardOnPage.value));
 
+  const setTickets = (newValue) => {
+    tickets.value = newValue;
+  };
+
   const loadMore = () => {
     cardOnPage.value += additionCardQuantity.value;
   };
 
-  const setTickets = (newValue) => {
-    tickets.value = newValue;
+  const goToTop = () => {
+    const header = document.querySelector('#filters');
+    header.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth'
+    });
   };
 
   const getSearchId = async () => {
@@ -99,14 +107,6 @@
     }
   };
 
-  const goToTop = () => {
-    const header = document.querySelector('#filters');
-    header.scrollIntoView({
-      block: 'start',
-      behavior: 'smooth'
-    });
-  };
-
   const getTickets = async () => {
     if (!stop.value) {
       try {
@@ -114,12 +114,14 @@
         if (res.ok) {
           const data = await res.json();
           setTickets(data.tickets);
-          console.log(tickets);
+          console.log(data);
           stop.value = data.stop;
         }
       } catch (e) {
         console.log(e);
       }
+    } else {
+      clearInterval(polling.value);
     }
   };
 
@@ -127,21 +129,21 @@
     return ticket.segments.reduce((sum, segment) => sum + segment.duration, 0);
   };
   const getOptimalPoints = (ticket) => {
-    return ticket.price / getTripSpeed(ticket);
+    return ticket.value.price / getTripSpeed(ticket);
   };
 
   const sortBySpeed = () => {
-    tickets.sort((elem1, elem2) => getTripSpeed(elem1) - getTripSpeed(elem2));
+    tickets.value.sort((elem1, elem2) => getTripSpeed(elem1) - getTripSpeed(elem2));
   };
   const sortByPrice = () => {
-    tickets.sort((elem1, elem2) => elem1.price - elem2.price);
+    tickets.value.sort((elem1, elem2) => elem1.price - elem2.price);
   };
   const sortByOptimal = () => {
-    tickets.reverse((elem1, elem2) => getOptimalPoints(elem1) - getOptimalPoints(elem2));
+    tickets.value.reverse((elem1, elem2) => getOptimalPoints(elem1) - getOptimalPoints(elem2));
   };
 
   const sortTickets = () => {
-    switch (sortingData) {
+    switch (sortingData.value) {
       case 'spead':
         sortBySpeed();
         break;
@@ -156,12 +158,22 @@
     }
   };
 
-  const created = async () => {
+  const createdListTickets = async () => {
     await getSearchId();
     await getTickets();
+    polling.value = setInterval(() => {
+      return new Promise((resolve, reject) => {
+        getTickets()
+          .then((resp) => {
+            resolve(resp);
+          })
+          .catch(reject);
+      });
+    }, 1000);
   };
 
-  onMounted(created);
+  onMounted(createdListTickets);
+  onBeforeUnmount(() => clearInterval(polling.value));
 </script>
 
 <style lang="scss">
@@ -179,7 +191,7 @@
   }
 
   button.content_button_more {
-    width: 70%;
+    width: 100%;
     font-size: 20px;
     border: none;
     outline: none;
