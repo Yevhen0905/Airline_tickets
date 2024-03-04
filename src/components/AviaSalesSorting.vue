@@ -64,7 +64,6 @@
 
 <style lang="scss">
   .avia_sorting {
-    width: 60%;
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
@@ -81,6 +80,11 @@
     box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
     font-size: 18px;
     text-transform: lowercase;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 
   .avia_sorting_button_active {

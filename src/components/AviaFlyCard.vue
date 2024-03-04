@@ -61,7 +61,7 @@
 
   const transfersQuantity = (stops) => {
     const transfersQuantity = stops.length;
-    const transfersQuantityText = transfersQuantity > 1 ? 'replantings' : 'replanting';
+    const transfersQuantityText = transfersQuantity > 1 ? 'transfers' : 'transfer';
     return `${transfersQuantity} ${transfersQuantityText}`;
   };
 
@@ -81,7 +81,7 @@
     box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     width: 100%;
-    padding: 20px;
+    padding: 25px;
   }
 
   .fly_card_header {

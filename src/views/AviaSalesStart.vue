@@ -1,8 +1,15 @@
 <template>
   <div class="avia_sales_start">
+    <progress max="100" :class="['progress_start', {progress_start_hidden: stop}]" />
     <div class="main_content">
-      <AviaSalesFilters id="filters" />
-      <div>
+      <AviaSalesFilters
+        id="filters"
+        v-model="filterData"
+        :transfers-amount="transfersAmount"
+        :disabled="!stop"
+        @on-filter="filterTickets"
+      />
+      <div class="content_body">
         <AviaSalesSorting
           v-model="sortingData"
           :sorting-buttons="sortingButtons"
@@ -26,7 +33,7 @@
   import AviaSalesFilters from '@/components/AviaSalesFilters.vue';
   import AviaFlyCard from '@/components/AviaFlyCard.vue';
   import AviaSalesSorting from '@/components/AviaSalesSorting.vue';
-  import {useRoute} from 'vue-router';
+  import {useRoute, useRouter} from 'vue-router';
 
   const searchId = ref(null);
   const tickets = ref([]);
@@ -75,54 +82,65 @@
   ]);
 
   const route = useRoute();
+  const router = useRouter();
+
   console.log(route.query);
 
   const filteredTickets = computed(() => tickets.value.slice(0, cardOnPage.value));
+
+  const queryFilter = computed(() => {
+    const filters = filterData.value;
+    return {
+      ...route.query,
+      no: filters.includes(0) ? 0 : undefined,
+      one: filters.includes(1) ? 1 : undefined,
+      two: filters.includes(2) ? 2 : undefined,
+      three: filters.includes(3) ? 3 : undefined,
+      all: filters.includes('all') ? 'all' : undefined
+    };
+  });
 
   const setTickets = (newValue) => {
     tickets.value = newValue;
   };
 
-  const loadMore = () => {
-    cardOnPage.value += additionCardQuantity.value;
+  const setQueryToFilter = () => {
+    const query = route.query;
+    if (query.no) {
+      Array.isArray(query.nst) ? filterData.value.concat(query.no) : filterData.value.push(Number(query.no));
+    }
+    if (query.one) {
+      Array.isArray(query.one) ? filterData.value.concat(query.one) : filterData.value.push(Number(query.one));
+    }
+    if (query.two) {
+      Array.isArray(query.two) ? filterData.value.concat(query.two) : filterData.value.push(Number(query.two));
+    }
+    if (query.three) {
+      Array.isArray(query.three) ? filterData.value.concat(query.three) : filterData.value.push(Number(query.three));
+    }
   };
 
-  const goToTop = () => {
-    const header = document.querySelector('#filters');
-    header.scrollIntoView({
-      block: 'start',
-      behavior: 'smooth'
+  const setQueryFilterToRouter = () => {
+    router.replace({
+      query: queryFilter.value
     });
   };
 
-  const getSearchId = async () => {
-    try {
-      const res = await fetch('https://avs-backend.vercel.app/search');
-
-      const data = await res.json();
-      searchId.value = data.searchId;
-      console.log(searchId.value);
-    } catch (e) {
-      console.log(e);
-    }
-  };
-
-  const getTickets = async () => {
-    if (!stop.value) {
-      try {
-        const res = await fetch(`https://avs-backend.vercel.app/tickets?searchId=${searchId.value}`);
-        if (res.ok) {
-          const data = await res.json();
-          setTickets(data.tickets);
-          console.log(data);
-          stop.value = data.stop;
-        }
-      } catch (e) {
-        console.log(e);
+  const filterTickets = () => {
+    if (filterData.value.length) {
+      const isAllResults = filterData.value.includes('all');
+      if (!isAllResults) {
+        tickets.value = tickets.value.filter((ticket) => {
+          return ticket.segments.find((segment) => {
+            const stopsQuantity = segment.stops.length;
+            if (filterData.value.includes(stopsQuantity)) {
+              return true;
+            }
+          });
+        });
       }
-    } else {
-      clearInterval(polling.value);
     }
+    setQueryFilterToRouter();
   };
 
   const getTripSpeed = (ticket) => {
@@ -158,8 +176,52 @@
     }
   };
 
+  const getSearchId = async () => {
+    try {
+      const res = await fetch('https://avs-backend.vercel.app/search');
+
+      const data = await res.json();
+      searchId.value = data.searchId;
+      console.log(searchId.value);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const getTickets = async () => {
+    if (!stop.value) {
+      try {
+        const res = await fetch(`https://avs-backend.vercel.app/tickets?searchId=${searchId.value}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTickets(data.tickets);
+          console.log(data);
+          filterTickets();
+          stop.value = data.stop;
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    } else {
+      clearInterval(polling.value);
+    }
+  };
+
+  const loadMore = () => {
+    cardOnPage.value += additionCardQuantity.value;
+  };
+
+  const goToTop = () => {
+    const header = document.querySelector('#filters');
+    header.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth'
+    });
+  };
+
   const createdListTickets = async () => {
     await getSearchId();
+    setQueryToFilter();
     await getTickets();
     polling.value = setInterval(() => {
       return new Promise((resolve, reject) => {
@@ -177,11 +239,34 @@
 </script>
 
 <style lang="scss">
+  .avia_sales_start {
+    max-width: 990px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .main_content {
+    display: flex;
+    gap: 15px;
+    transition: all 0.4s ease;
+
+    @media only screen and (max-width: 870px) {
+      flex-direction: column;
+    }
+  }
+
+  .content_body {
+    width: 74%;
+    transition: all 0.4s ease;
+
+    @media only screen and (max-width: 870px) {
+      width: 100%;
+    }
+  }
+
   .main_content_wrapper {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    width: 60%;
   }
 
   .main_content_buttoms {
@@ -190,7 +275,7 @@
     gap: 10px;
   }
 
-  button.content_button_more {
+  .content_button_more {
     width: 100%;
     font-size: 20px;
     border: none;
@@ -201,11 +286,21 @@
     border-radius: 5px;
   }
 
-  button.content_button_top {
+  .content_button_top {
     width: 28%;
     border: none;
     outline: none;
     background: #ddf06d;
     font-size: 20px;
+  }
+
+  .progress_start {
+    width: 100%;
+    transition: all 0.7s ease;
+    opacity: 1;
+  }
+
+  .progress_start_hidden {
+    opacity: 0;
   }
 </style>
